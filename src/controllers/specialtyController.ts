@@ -14,6 +14,15 @@ export async function createSpecialty(req: Request, res: Response) {
     #swagger.tags = ['Specialties']
     #swagger.summary = 'Crear especialidad'
     #swagger.description = 'Permite registrar nuevas especialidades. Acceso exclusivo para ADMIN.'
+    #swagger.parameters['body'] = {
+      in: 'body',
+      description: 'Cuerpo para crear una especialidad',
+      required: true,
+      schema: {
+        specialtyName: "",
+        description: ""
+      }
+    }
     #swagger.security = [{
     "bearerAuth": []
     }]
@@ -165,6 +174,14 @@ export async function updateSpecialty(req: Request, res: Response) {
     #swagger.tags = ['Specialties']
     #swagger.summary = 'Actualizar especialidad'
     #swagger.description = 'Permite actualizar los datos de una especialidad. Acceso exclusivo para ADMIN.'
+    #swagger.parameters['body'] = {
+      in: 'body',
+      description: 'Replace - specialtyName, description',
+      required: true,
+      schema: {
+        replace: ""
+      }
+    }
     #swagger.security = [{
     "bearerAuth": []
     }]

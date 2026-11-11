@@ -1,59 +1,90 @@
+
 import type { RequestHandler } from "express";
 import jwt from "jsonwebtoken";
+import { prisma } from "../config/prisma.js";
 
-export const authMiddleware: RequestHandler = (req, res, next) => {
+const allowedRoles: string[] = [
+  "ADMIN",
+  "RECEPTIONIST",
+  "MEDIC",
+  "MANAGER",
+];
+
+export const authMiddleware: RequestHandler = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    console.log("AUTH MIDDLEWARE EJECUTADO: ", authHeader);
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader || !/^Bearer\s+\S+$/i.test(authHeader)) {
       res.status(401).json({
-        message: "No se proporciona token de autenticación.",
+        message: "No se proporciona un token válido.",
       });
       return;
     }
 
-    const token = authHeader.split(" ")[1];
-
-    if (!token) {
-      res.status(401).json({
-        message: "Token no proporcionado",
-      });
-      return;
-    }
-
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
     const jwtSecret = process.env.JWT_SECRET;
 
     if (!jwtSecret) {
       res.status(500).json({
-        message: "Error al procesar el token.",
+        message: "Error de configuración del servidor.",
       });
       return;
     }
 
-    const decodeToken = jwt.verify(token, jwtSecret);
+    const decoded = jwt.verify(token, jwtSecret);
 
-    if (
-      typeof decodeToken === "string" ||
-      typeof decodeToken.sub !== "string" ||
-      typeof decodeToken.role !== "string"
-    ) {
+    if (typeof decoded === "string" || typeof decoded.sub !== "string") {
       res.status(401).json({
-        message: "Token inválido",
+        message: "Token inválido.",
+      });
+      return;
+    }
+
+    const userId = Number(decoded.sub);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      res.status(401).json({
+        message: "Token inválido.",
+      });
+      return;
+    }
+
+    const userActive = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        status: true,
+        role: {
+          select: {
+            roleName: true,
+          },
+        },
+      },
+    });
+
+    if (!userActive || !userActive.status) {
+      res.status(401).json({
+        message: "Usuario inactivo o inexistente.",
+      });
+      return;
+    }
+
+    if (!allowedRoles.includes(userActive.role.roleName)) {
+      res.status(401).json({
+        message: "Rol de usuario inválido.",
       });
       return;
     }
 
     res.locals.authUser = {
-      id: Number(decodeToken.sub),
-      role: decodeToken.role,
+      id: userActive.id,
+      role: userActive.role.roleName,
     };
 
     next();
-
   } catch (error) {
     res.status(401).json({
-      message: "Token inválido o expirado",
+      message: "Token inválido o expirado.",
     });
   }
 };

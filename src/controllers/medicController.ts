@@ -21,6 +21,14 @@ const updateMedicSchema = createMedicSchema
   });
 
 export async function createMedic(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Medics']
+    #swagger.summary = 'Registrar un médico'
+    #swagger.description = 'Permite registrar un nuevo médico y crear su usuario de acceso. Rol permitido: ADMIN.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const validation = createMedicSchema.safeParse(req.body);
 
@@ -139,6 +147,14 @@ export async function createMedic(req: Request, res: Response) {
 }
 
 export async function getMedics(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Medics']
+    #swagger.summary = 'Listar médicos'
+    #swagger.description = 'Permite consultar el listado de médicos registrados. Roles permitidos: ADMIN, RECEPTIONIST y MANAGER.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const medics = await prisma.medic.findMany({
       select: {
@@ -178,6 +194,14 @@ export async function getMedics(req: Request, res: Response) {
 }
 
 export async function getMedicById(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Medics']
+    #swagger.summary = 'Consultar médico por ID'
+    #swagger.description = 'Permite consultar la información y el historial de citas de un médico específico. Roles permitidos: ADMIN, RECEPTIONIST, MANAGER y MEDIC.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const medicId = Number(req.params.id);
 
@@ -250,6 +274,14 @@ export async function getMedicById(req: Request, res: Response) {
 }
 
 export async function updateMedic(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Medics']
+    #swagger.summary = 'Actualizar un médico'
+    #swagger.description = 'Permite actualizar la información personal, profesional o de acceso de un médico. Rol permitido: ADMIN.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const medicId = Number(req.params.id);
 
@@ -385,6 +417,14 @@ export async function updateMedic(req: Request, res: Response) {
 }
 
 export async function deleteMedic(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Medics']
+    #swagger.summary = 'Desactivar un médico'
+    #swagger.description = 'Permite desactivar el usuario de un médico sin eliminar su historial ni sus registros asociados. Rol permitido: ADMIN.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const medicId = Number(req.params.id);
 

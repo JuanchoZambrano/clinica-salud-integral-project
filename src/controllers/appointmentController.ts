@@ -34,6 +34,14 @@ const updateAppointmentStatusSchema = z.object({
 const DURATION = 30 * 60 * 1000;
 
 export async function createAppointment(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Appointments']
+    #swagger.summary = 'Crear una cita'
+    #swagger.description = 'Permite programar una nueva cita médica. Roles permitidos: ADMIN y RECEPTIONIST.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const validation = createAppointmentSchema.safeParse(req.body);
     if (!validation.success) {
@@ -152,6 +160,14 @@ export async function createAppointment(req: Request, res: Response) {
 }
 
 export async function getAppointments(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Appointments']
+    #swagger.summary = 'Listar citas'
+    #swagger.description = 'Permite consultar las citas médicas registradas. Roles permitidos: ADMIN, RECEPTIONIST, MANAGER y MEDIC.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const authUser = res.locals.authUser;
     const { status, from, to } = req.query;
@@ -250,6 +266,14 @@ export async function getAppointments(req: Request, res: Response) {
 }
 
 export async function getAppointmentById(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Appointments']
+    #swagger.summary = 'Consultar cita por ID'
+    #swagger.description = 'Permite consultar los detalles de una cita médica específica. Roles permitidos: ADMIN, RECEPTIONIST, MANAGER y MEDIC.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const appointmentId = Number(req.params.id);
 
@@ -323,6 +347,14 @@ export async function getAppointmentById(req: Request, res: Response) {
 }
 
 export async function updateAppointment(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Appointments']
+    #swagger.summary = 'Actualizar una cita'
+    #swagger.description = 'Permite modificar la información de una cita médica programada. Roles permitidos: ADMIN, RECEPTIONIST y MEDIC.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const authUser = res.locals.authUser;
     const appointmentId = Number(req.params.id);
@@ -508,6 +540,14 @@ export async function updateAppointment(req: Request, res: Response) {
 }
 
 export async function updateAppointmentStatus(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Appointments']
+    #swagger.summary = 'Actualizar estado de una cita'
+    #swagger.description = 'Permite cambiar el estado de una cita médica. Roles permitidos: ADMIN y MEDIC.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const authUser = res.locals.authUser;
     const appointmentId = Number(req.params.id);

@@ -39,6 +39,14 @@ const updatePatientSchema = createPatientSchema
   });
 
 export async function createPatient(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Patients']
+    #swagger.summary = 'Registrar un paciente'
+    #swagger.description = 'Permite registrar un nuevo paciente. Roles permitidos: ADMIN y RECEPTIONIST.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const validation = createPatientSchema.safeParse(req.body);
     if (!validation.success) {
@@ -100,6 +108,14 @@ export async function createPatient(req: Request, res: Response) {
 }
 
 export async function getPatients(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Patients']
+    #swagger.summary = 'Listar pacientes'
+    #swagger.description = 'Permite consultar el listado de pacientes registrados. Roles permitidos: ADMIN y RECEPTIONIST.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const patients = await prisma.patient.findMany({
       select: {
@@ -128,6 +144,14 @@ export async function getPatients(req: Request, res: Response) {
 }
 
 export async function getPatientById(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Patients']
+    #swagger.summary = 'Consultar paciente por ID'
+    #swagger.description = 'Permite consultar la información de un paciente específico mediante su ID. Roles permitidos: ADMIN y RECEPTIONIST.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const patientId = Number(req.params.id);
     if (!Number.isInteger(patientId) || patientId <= 0) {
@@ -187,6 +211,14 @@ export async function getPatientById(req: Request, res: Response) {
 }
 
 export async function getPatientAppointments(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Patients']
+    #swagger.summary = 'Consultar citas de un paciente'
+    #swagger.description = 'Permite consultar el historial de citas de un paciente específico. Roles permitidos: ADMIN y RECEPTIONIST.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const patientId = Number(req.params.id);
     if (!Number.isInteger(patientId) || patientId <= 0) {
@@ -242,6 +274,14 @@ export async function getPatientAppointments(req: Request, res: Response) {
 }
 
 export async function updatePatient(req: Request, res: Response) {
+  /*
+    #swagger.tags = ['Patients']
+    #swagger.summary = 'Actualizar un paciente'
+    #swagger.description = 'Permite actualizar la información de un paciente existente. Roles permitidos: ADMIN y RECEPTIONIST.'
+    #swagger.security = [{
+      "bearerAuth": []
+    }]
+  */
   try {
     const patientId = Number(req.params.id);
     if (!Number.isInteger(patientId) || patientId <= 0) {

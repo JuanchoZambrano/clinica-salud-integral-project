@@ -10,6 +10,14 @@ const createSpecialtySchema = z.object({
 const updateSpecialtySchema = createSpecialtySchema.partial();
 
 export async function createSpecialty(req: Request, res: Response) {
+  /* 
+    #swagger.tags = ['Specialties']
+    #swagger.summary = 'Crear especialidad'
+    #swagger.description = 'Permite registrar nuevas especialidades. Acceso exclusivo para ADMIN.'
+    #swagger.security = [{
+    "bearerAuth": []
+    }]
+  */
   try {
     const validation = createSpecialtySchema.safeParse(req.body);
 
@@ -57,6 +65,14 @@ export async function createSpecialty(req: Request, res: Response) {
 }
 
 export async function getSpecialties(req: Request, res: Response) {
+  /* 
+    #swagger.tags = ['Specialties']
+    #swagger.summary = 'Listar especialidades'
+    #swagger.description = 'Permite consultar todas las especialidades. Roles permitidos: ADMIN, RECEPTIONIST, MANAGER y MEDIC.'
+    #swagger.security = [{
+    "bearerAuth": []
+    }]
+  */
   try {
     const specialties = await prisma.specialty.findMany({
       select: {
@@ -84,6 +100,14 @@ export async function getSpecialties(req: Request, res: Response) {
 }
 
 export async function getSpecialtyById(req: Request, res: Response) {
+  /* 
+    #swagger.tags = ['Specialties']
+    #swagger.summary = 'Encontrar especialidadpor su ID'
+    #swagger.description = 'Permite consultar una especialidad por su ID, incluyendo sus médicos asociados. Roles permitidos: ADMIN, RECEPTIONIST, MANAGER y MEDIC.'
+    #swagger.security = [{
+    "bearerAuth": []
+    }]
+  */
   try {
     const specialtyId = Number(req.params.id);
 
@@ -137,6 +161,14 @@ export async function getSpecialtyById(req: Request, res: Response) {
 }
 
 export async function updateSpecialty(req: Request, res: Response) {
+  /* 
+    #swagger.tags = ['Specialties']
+    #swagger.summary = 'Actualizar especialidad'
+    #swagger.description = 'Permite actualizar los datos de una especialidad. Acceso exclusivo para ADMIN.'
+    #swagger.security = [{
+    "bearerAuth": []
+    }]
+  */
   try {
     const specialtyId = Number(req.params.id);
 
@@ -177,10 +209,7 @@ export async function updateSpecialty(req: Request, res: Response) {
       });
     }
 
-    if (
-      data.specialtyName &&
-      data.specialtyName !== specialty.specialtyName
-    ) {
+    if (data.specialtyName && data.specialtyName !== specialty.specialtyName) {
       const existingSpecialty = await prisma.specialty.findUnique({
         where: { specialtyName: data.specialtyName },
       });
@@ -213,6 +242,14 @@ export async function updateSpecialty(req: Request, res: Response) {
 }
 
 export async function deleteSpecialty(req: Request, res: Response) {
+  /* 
+    #swagger.tags = ['Specialties']
+    #swagger.summary = 'Desactivar especialidad'
+    #swagger.description = 'Permite eliminar una especialidad si no tiene médicos asociados. Acceso exclusivo para ADMIN.'
+    #swagger.security = [{
+    "bearerAuth": []
+    }]
+  */
   try {
     const specialtyId = Number(req.params.id);
 
@@ -244,13 +281,18 @@ export async function deleteSpecialty(req: Request, res: Response) {
     if (specialty._count.medics > 0) {
       return res.status(409).json({
         ok: false,
-        message: "No se puede eliminar una especialidad que tiene médicos asociados.",
+        message:
+          "No se puede eliminar una especialidad que tiene médicos asociados.",
       });
     }
 
-    await prisma.specialty.delete({
-      where: { id: specialtyId },
-    });
+    const deleteData = {
+      where: {
+        id: specialtyId,
+      },
+    };
+
+    await prisma.specialty.delete(deleteData);
 
     return res.status(200).json({
       ok: true,

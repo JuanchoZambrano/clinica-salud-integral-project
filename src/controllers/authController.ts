@@ -10,6 +10,19 @@ const loginSchema = z.object({
 });
 
 export async function login(req: Request, res: Response) {
+  /* 
+    #swagger.tags = ['Authentication']
+    #swagger.summary = 'Iniciar sesión'
+    #swagger.parameters['body'] = {
+        in: 'body',
+        description: 'Credenciales de acceso',
+        required: true,
+        schema: {
+            email: "your_email",
+            password: "your_password"
+        }
+    }
+  */
   try {
     const validation = loginSchema.safeParse(req.body);
 
@@ -81,6 +94,9 @@ export async function login(req: Request, res: Response) {
 }
 
 export async function me(req: Request, res: Response) {
+  /* 
+    #swagger.tags = ['Authentication']
+  */
   try {
 
     const authUser = res.locals.authUser as {

@@ -136,6 +136,30 @@ export async function getPatientById(req: Request, res: Response) {
 
     const getPatient = await prisma.patient.findUnique({
       where: { id: patientId },
+      include: {
+        appointments: {
+          orderBy: {
+            appointmentDate: "desc",
+          },
+          include: {
+            medic: {
+              include: {
+                user: {
+                  select: {
+                    userName: true,
+                    userEmail: true,
+                  },
+                },
+                specialty: {
+                  select: {
+                    specialtyName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!getPatient) {

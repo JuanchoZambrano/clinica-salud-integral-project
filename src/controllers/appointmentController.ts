@@ -34,10 +34,21 @@ const updateAppointmentStatusSchema = z.object({
 const DURATION = 30 * 60 * 1000;
 
 export async function createAppointment(req: Request, res: Response) {
-  /*
+/*
     #swagger.tags = ['Appointments']
     #swagger.summary = 'Crear una cita'
     #swagger.description = 'Permite programar una nueva cita médica. Roles permitidos: ADMIN y RECEPTIONIST.'
+    #swagger.parameters['body'] = {
+      in: 'body',
+      description: 'Cuerpo para crear una cita',
+      required: true,
+      schema: {
+        appointmentDate: "YYYY-MM-DDT00:00:00.000Z",
+        observation: "",
+        patientId: 1,
+        medicId: 1
+      }
+    }
     #swagger.security = [{
       "bearerAuth": []
     }]
@@ -53,6 +64,15 @@ export async function createAppointment(req: Request, res: Response) {
     }
 
     const appointmentData = validation.data;
+
+    const now = new Date();
+
+    if (appointmentData.appointmentDate <= now) {
+      return res.status(400).json({
+        ok: false,
+        message: "No se pueden programar citas en fechas u horas pasadas.",
+      });
+    }
 
     const findPatient = await prisma.patient.findUnique({
       where: { id: appointmentData.patientId },
@@ -351,6 +371,14 @@ export async function updateAppointment(req: Request, res: Response) {
     #swagger.tags = ['Appointments']
     #swagger.summary = 'Actualizar una cita'
     #swagger.description = 'Permite modificar la información de una cita médica programada. Roles permitidos: ADMIN, RECEPTIONIST y MEDIC.'
+    #swagger.parameters['body'] = {
+      in: 'body',
+      description: 'Replace - appointmentDate, observation, patientId, medicId',
+      required: true,
+      schema: {
+        replace: ""
+      }
+    }
     #swagger.security = [{
       "bearerAuth": []
     }]
@@ -544,6 +572,14 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
     #swagger.tags = ['Appointments']
     #swagger.summary = 'Actualizar estado de una cita'
     #swagger.description = 'Permite cambiar el estado de una cita médica. Roles permitidos: ADMIN y MEDIC.'
+    #swagger.parameters['body'] = {
+      in: 'body',
+      description: 'Usar COMPLETED o CANCELLED',
+      required: true,
+      schema: {
+        status: ""
+      }
+    }
     #swagger.security = [{
       "bearerAuth": []
     }]

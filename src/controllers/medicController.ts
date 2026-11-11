@@ -25,6 +25,19 @@ export async function createMedic(req: Request, res: Response) {
     #swagger.tags = ['Medics']
     #swagger.summary = 'Registrar un médico'
     #swagger.description = 'Permite registrar un nuevo médico y crear su usuario de acceso. Rol permitido: ADMIN.'
+    #swagger.parameters['body'] = {
+      in: 'body',
+      description: 'Cuerpo para crear un medico.',
+      required: true,
+      schema: {
+        userName: "",
+        userEmail: "example@mail.com",
+        password: "",
+        professionalCode: "",
+        medicPhone: "",
+        specialtyId: 1
+      }
+    }
     #swagger.security = [{
       "bearerAuth": []
     }]
@@ -149,14 +162,34 @@ export async function createMedic(req: Request, res: Response) {
 export async function getMedics(req: Request, res: Response) {
   /*
     #swagger.tags = ['Medics']
-    #swagger.summary = 'Listar médicos'
-    #swagger.description = 'Permite consultar el listado de médicos registrados. Roles permitidos: ADMIN, RECEPTIONIST y MANAGER.'
+    #swagger.summary = 'Listar y filtrar médicos'
+    #swagger.description = 'Permite consultar todos los médicos o filtrarlos por especialidad mediante specialtyId. Roles permitidos: ADMIN, RECEPTIONIST y MANAGER.'
     #swagger.security = [{
       "bearerAuth": []
     }]
   */
+
   try {
+    const specialtyId = req.query.specialtyId;
+
+    if (
+      specialtyId !== undefined &&
+      (typeof specialtyId !== "string" ||
+        !/^[1-9]\d*$/.test(specialtyId))
+    ) {
+      return res.status(400).json({
+        ok: false,
+        message: "El ID de la especialidad no es válido.",
+      });
+    }
+
     const medics = await prisma.medic.findMany({
+      where: {
+        ...(specialtyId !== undefined ? { specialtyId: Number(specialtyId) } : {}),
+        user: {
+          status: true,
+        },
+      },
       select: {
         id: true,
         professionalCode: true,
@@ -278,6 +311,14 @@ export async function updateMedic(req: Request, res: Response) {
     #swagger.tags = ['Medics']
     #swagger.summary = 'Actualizar un médico'
     #swagger.description = 'Permite actualizar la información personal, profesional o de acceso de un médico. Rol permitido: ADMIN.'
+    #swagger.parameters['body'] = {
+      in: 'body',
+      description: 'Replace - userName, userEmail, password, professionalCode, medicPhone, specialtyId',
+      required: true,
+      schema: {
+        replace: ""
+      }
+    }
     #swagger.security = [{
       "bearerAuth": []
     }]

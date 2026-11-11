@@ -179,6 +179,45 @@
             "name": "authorization",
             "in": "header",
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Cuerpo para crear un paciente.",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "patientName": {
+                  "type": "string",
+                  "example": ""
+                },
+                "patientLastName": {
+                  "type": "string",
+                  "example": ""
+                },
+                "personalId": {
+                  "type": "string",
+                  "example": ""
+                },
+                "birthDate": {
+                  "type": "string",
+                  "example": "YYYY-MM-DDT00:00:00.000Z"
+                },
+                "patientEmail": {
+                  "type": "string",
+                  "example": "example@mail.com"
+                },
+                "patientPhone": {
+                  "type": "string",
+                  "example": ""
+                },
+                "patientAdress": {
+                  "type": "string",
+                  "example": ""
+                }
+              }
+            }
           }
         ],
         "responses": {
@@ -304,6 +343,21 @@
             "name": "authorization",
             "in": "header",
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Replace - patientName, patientLastName, personalID, birthDate, patientEmail, patientPhone, patientAddress",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "replace": {
+                  "type": "string",
+                  "example": ""
+                }
+              }
+            }
           }
         ],
         "responses": {
@@ -395,6 +449,33 @@
             "name": "authorization",
             "in": "header",
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Cuerpo para crear una cita",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "appointmentDate": {
+                  "type": "string",
+                  "example": "YYYY-MM-DDT00:00:00.000Z"
+                },
+                "observation": {
+                  "type": "string",
+                  "example": ""
+                },
+                "patientId": {
+                  "type": "number",
+                  "example": 1
+                },
+                "medicId": {
+                  "type": "number",
+                  "example": 1
+                }
+              }
+            }
           }
         ],
         "responses": {
@@ -541,6 +622,21 @@
             "name": "authorization",
             "in": "header",
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Replace - appointmentDate, observation, patientId, medicId",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "replace": {
+                  "type": "string",
+                  "example": ""
+                }
+              }
+            }
           }
         ],
         "responses": {
@@ -591,6 +687,21 @@
             "name": "authorization",
             "in": "header",
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Usar COMPLETED o CANCELLED",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": ""
+                }
+              }
+            }
           }
         ],
         "responses": {
@@ -635,6 +746,41 @@
             "name": "authorization",
             "in": "header",
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Cuerpo para crear un medico.",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "userName": {
+                  "type": "string",
+                  "example": ""
+                },
+                "userEmail": {
+                  "type": "string",
+                  "example": "example@mail.com"
+                },
+                "password": {
+                  "type": "string",
+                  "example": ""
+                },
+                "professionalCode": {
+                  "type": "string",
+                  "example": ""
+                },
+                "medicPhone": {
+                  "type": "string",
+                  "example": ""
+                },
+                "specialtyId": {
+                  "type": "number",
+                  "example": 1
+                }
+              }
+            }
           }
         ],
         "responses": {
@@ -670,18 +816,26 @@
         "tags": [
           "Medics"
         ],
-        "summary": "Listar médicos",
-        "description": "Permite consultar el listado de médicos registrados. Roles permitidos: ADMIN, RECEPTIONIST y MANAGER.",
+        "summary": "Listar y filtrar médicos",
+        "description": "Permite consultar todos los médicos o filtrarlos por especialidad mediante specialtyId. Roles permitidos: ADMIN, RECEPTIONIST y MANAGER.",
         "parameters": [
           {
             "name": "authorization",
             "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "specialtyId",
+            "in": "query",
             "type": "string"
           }
         ],
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
           },
           "401": {
             "description": "Unauthorized"
@@ -763,6 +917,21 @@
             "name": "authorization",
             "in": "header",
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Replace - userName, userEmail, password, professionalCode, medicPhone, specialtyId",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "replace": {
+                  "type": "string",
+                  "example": ""
+                }
+              }
+            }
           }
         ],
         "responses": {
@@ -852,6 +1021,25 @@
             "name": "authorization",
             "in": "header",
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Cuerpo para crear una especialidad",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "specialtyName": {
+                  "type": "string",
+                  "example": ""
+                },
+                "description": {
+                  "type": "string",
+                  "example": ""
+                }
+              }
+            }
           }
         ],
         "responses": {
@@ -977,6 +1165,21 @@
             "name": "authorization",
             "in": "header",
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "description": "Replace - specialtyName, description",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "replace": {
+                  "type": "string",
+                  "example": ""
+                }
+              }
+            }
           }
         ],
         "responses": {

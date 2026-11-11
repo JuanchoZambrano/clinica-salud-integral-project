@@ -16,11 +16,18 @@ const createPatientSchema = z.object({
     .trim()
     .min(1, "El ID personal del paciente es obligatorio.")
     .max(30, "El ID personalno puede tener más de 30 caracteres."),
-  birthDate: z.coerce // configurar mejor para solo validar el dia
+  birthDate: z.coerce
     .date({ message: "Introduce una fecha y hora válidas." })
-    .refine((date) => date <= new Date(), {
-      message: "La fecha y hora no pueden ser mayores a la actual",
-    }),
+    .refine(
+      (date) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return date <= today;
+      },
+      {
+        message: "La fecha y hora no pueden ser mayores a la actual",
+      },
+    ),
   patientEmail: z.string().trim().email("Correo electronico invalido."),
   patientPhone: z
     .string()
@@ -43,6 +50,20 @@ export async function createPatient(req: Request, res: Response) {
     #swagger.tags = ['Patients']
     #swagger.summary = 'Registrar un paciente'
     #swagger.description = 'Permite registrar un nuevo paciente. Roles permitidos: ADMIN y RECEPTIONIST.'
+    #swagger.parameters['body'] = {
+      in: 'body',
+      description: 'Cuerpo para crear un paciente.',
+      required: true,
+      schema: {
+        patientName: "",
+        patientLastName: "",
+        personalId: "",
+        birthDate: "YYYY-MM-DDT00:00:00.000Z",
+        patientEmail: "example@mail.com",
+        patientPhone: "",
+        patientAdress: ""
+      }
+    }
     #swagger.security = [{
       "bearerAuth": []
     }]
@@ -126,7 +147,7 @@ export async function getPatients(req: Request, res: Response) {
         patientEmail: true,
       },
       orderBy: {
-        id: 'asc'
+        id: "asc",
       },
     });
 
@@ -278,6 +299,14 @@ export async function updatePatient(req: Request, res: Response) {
     #swagger.tags = ['Patients']
     #swagger.summary = 'Actualizar un paciente'
     #swagger.description = 'Permite actualizar la información de un paciente existente. Roles permitidos: ADMIN y RECEPTIONIST.'
+    #swagger.parameters['body'] = {
+      in: 'body',
+      description: 'Replace - patientName, patientLastName, personalID, birthDate, patientEmail, patientPhone, patientAddress',
+      required: true,
+      schema: {
+        replace: ""
+      }
+    }
     #swagger.security = [{
       "bearerAuth": []
     }]

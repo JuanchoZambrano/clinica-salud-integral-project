@@ -109,6 +109,9 @@ export async function getPatients(req: Request, res: Response) {
         personalId: true,
         patientEmail: true,
       },
+      orderBy: {
+        id: 'asc'
+      },
     });
 
     res.status(200).json({

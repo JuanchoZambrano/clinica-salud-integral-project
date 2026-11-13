@@ -34,7 +34,7 @@ const updateAppointmentStatusSchema = z.object({
 const DURATION = 30 * 60 * 1000;
 
 export async function createAppointment(req: Request, res: Response) {
-/*
+  /*
     #swagger.tags = ['Appointments']
     #swagger.summary = 'Crear una cita'
     #swagger.description = 'Permite programar una nueva cita médica. Roles permitidos: ADMIN y RECEPTIONIST.'

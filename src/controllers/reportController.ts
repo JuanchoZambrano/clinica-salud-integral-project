@@ -1,5 +1,8 @@
 import type { Request, Response } from "express";
-import { prisma } from "../config/prisma.js";
+import {
+  getAppointmentsBySpecialtyModel,
+  getDailyReportModel,
+} from "../models/reportModel.js";
 
 export async function getAppointmentsBySpecialty(req: Request, res: Response) {
   /*
@@ -10,16 +13,7 @@ export async function getAppointmentsBySpecialty(req: Request, res: Response) {
   */
 
   try {
-    const report = await prisma.$queryRaw`
-      SELECT
-        s."specialtyName",
-        COUNT(a.id)::int AS "totalAppointments"
-      FROM specialties s
-      LEFT JOIN medics m ON m."specialtyId" = s.id
-      LEFT JOIN appointments a ON a."medicId" = m.id
-      GROUP BY s.id, s."specialtyName"
-      ORDER BY "totalAppointments" DESC;
-    `;
+    const report = await getAppointmentsBySpecialtyModel();
 
     return res.status(200).json({
       ok: true,
@@ -55,19 +49,7 @@ export async function getDailyReport(req: Request, res: Response) {
     const start = new Date(`${date}T00:00:00-05:00`);
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
 
-    const report = await prisma.appointment.groupBy({
-      by: ["status"],
-      where: {
-        appointmentDate: {
-          gte: start,
-          lt: end,
-        },
-        status: {
-          in: ["COMPLETED", "CANCELLED"],
-        },
-      },
-      _count: true,
-    });
+    const report = await getDailyReportModel(start, end);
 
     return res.status(200).json({
       ok: true,

@@ -1,35 +1,22 @@
 import type { Request, Response } from "express";
-import { prisma } from "../config/prisma";
-import { z } from "zod";
-
-const createAppointmentSchema = z.object({
-  appointmentDate: z.coerce
-    .date({ message: "Introduce una fecha y hora validas: YYYY-MM-DD" })
-    .refine((date) => date >= new Date(), {
-      message: "La fecha tiene que ser futura.",
-    }),
-  observation: z
-    .string()
-    .trim()
-    .min(1, "La observación debe ser un texto")
-    .optional(),
-  patientId: z.number().int().positive(),
-  medicId: z.number().int().positive(),
-});
-
-const updateAppointmentSchema = createAppointmentSchema
-  .partial()
-  .refine((data) => Object.keys(data).length > 0, {
-    message: "Debe proporcionar al menos un campo para actualizar.",
-  });
-
-const appointmentStatusSchema = z.enum(["SCHEDULED", "COMPLETED", "CANCELLED"]);
-
-const updateAppointmentStatusSchema = z.object({
-  status: z.enum(["COMPLETED", "CANCELLED"], {
-    message: "El estado debe ser COMPLETED o CANCELLED.",
-  }),
-});
+import {
+  findPatientForAppointmentModel,
+  findMedicForAppointmentModel,
+  findRepeatedAppointmentForMedicModel,
+  findRepeatedAppointmentForPatientModel,
+  createAppointmentModel,
+  getAppointmentsModel,
+  findAppointmentByIdModel,
+  findAppointmentToUpdateModel,
+  updateAppointmentModel,
+  updateAppointmentStatusModel,
+} from "../models/appointmentModel.js";
+import {
+  createAppointmentSchema,
+  updateAppointmentSchema,
+  appointmentStatusSchema,
+  updateAppointmentStatusSchema,
+} from "../schemas/appointmentSchema.js";
 
 const DURATION = 30 * 60 * 1000;
 
@@ -74,13 +61,13 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
-    const findPatient = await prisma.patient.findUnique({
-      where: { id: appointmentData.patientId },
-    });
+    const findPatient = await findPatientForAppointmentModel(
+      appointmentData.patientId,
+    );
 
-    const findMedic = await prisma.medic.findUnique({
-      where: { id: appointmentData.medicId },
-    });
+    const findMedic = await findMedicForAppointmentModel(
+      appointmentData.medicId,
+    );
 
     if (!findPatient) {
       return res
@@ -98,27 +85,19 @@ export async function createAppointment(req: Request, res: Response) {
     const end = new Date(start.getTime() + DURATION);
     const previous = new Date(start.getTime() - DURATION);
 
-    const repeatedAppointmentForMedic = await prisma.appointment.findFirst({
-      where: {
-        medicId: appointmentData.medicId,
-        status: "SCHEDULED",
-        appointmentDate: {
-          gt: previous,
-          lt: end,
-        },
-      },
-    });
+    const repeatedAppointmentForMedic =
+      await findRepeatedAppointmentForMedicModel(
+        appointmentData.medicId,
+        previous,
+        end,
+      );
 
-    const repeatedAppointmentForPatient = await prisma.appointment.findFirst({
-      where: {
-        patientId: appointmentData.patientId,
-        status: "SCHEDULED",
-        appointmentDate: {
-          gt: previous,
-          lt: end,
-        },
-      },
-    });
+    const repeatedAppointmentForPatient =
+      await findRepeatedAppointmentForPatientModel(
+        appointmentData.patientId,
+        previous,
+        end,
+      );
 
     if (repeatedAppointmentForMedic) {
       return res.status(409).json({
@@ -134,35 +113,11 @@ export async function createAppointment(req: Request, res: Response) {
       });
     }
 
-    const newAppointment = await prisma.appointment.create({
-      data: {
-        appointmentDate: appointmentData.appointmentDate,
-        observation: appointmentData.observation,
-        patientId: appointmentData.patientId,
-        medicId: appointmentData.medicId,
-      },
-      select: {
-        id: true,
-        appointmentDate: true,
-        patient: {
-          select: {
-            patientName: true,
-            patientLastName: true,
-          },
-        },
-        medic: {
-          select: {
-            professionalCode: true,
-            specialty: {
-              select: {
-                specialtyName: true,
-              },
-            },
-          },
-        },
-        observation: true,
-        status: true,
-      },
+    const newAppointment = await createAppointmentModel({
+      appointmentDate: appointmentData.appointmentDate,
+      observation: appointmentData.observation,
+      patientId: appointmentData.patientId,
+      medicId: appointmentData.medicId,
     });
 
     res.status(201).json({
@@ -247,30 +202,7 @@ export async function getAppointments(req: Request, res: Response) {
         : {}),
     };
 
-    const appointments = await prisma.appointment.findMany({
-      where,
-      orderBy: {
-        id: "asc",
-      },
-      select: {
-        id: true,
-        appointmentDate: true,
-        observation: true,
-        patient: {
-          select: {
-            patientName: true,
-            patientLastName: true,
-          },
-        },
-        medic: {
-          select: {
-            professionalCode: true,
-            specialty: { select: { specialtyName: true } },
-          },
-        },
-        status: true,
-      },
-    });
+    const appointments = await getAppointmentsModel(where);
 
     res.status(200).json({
       ok: true,
@@ -306,45 +238,10 @@ export async function getAppointmentById(req: Request, res: Response) {
 
     const authUser = res.locals.authUser;
 
-    const appointment = await prisma.appointment.findFirst({
-      where: {
-        id: appointmentId,
-        ...(authUser.role === "MEDIC"
-          ? {
-              medic: {
-                is: {
-                  userId: authUser.id,
-                },
-              },
-            }
-          : {}),
-      },
-      select: {
-        id: true,
-        appointmentDate: true,
-        observation: true,
-        status: true,
-        patient: {
-          select: {
-            id: true,
-            patientName: true,
-            patientLastName: true,
-            personalId: true,
-          },
-        },
-        medic: {
-          select: {
-            id: true,
-            professionalCode: true,
-            specialty: {
-              select: {
-                specialtyName: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const appointment = await findAppointmentByIdModel(
+      appointmentId,
+      authUser.role === "MEDIC" ? authUser.id : undefined,
+    );
 
     if (!appointment) {
       return res.status(404).json({
@@ -394,20 +291,10 @@ export async function updateAppointment(req: Request, res: Response) {
       });
     }
 
-    const getAppointment = await prisma.appointment.findFirst({
-      where: {
-        id: appointmentId,
-        ...(authUser.role === "MEDIC"
-          ? {
-              medic: {
-                is: {
-                  userId: authUser.id,
-                },
-              },
-            }
-          : {}),
-      },
-    });
+    const getAppointment = await findAppointmentToUpdateModel(
+      appointmentId,
+      authUser.role === "MEDIC" ? authUser.id : undefined,
+    );
 
     if (!getAppointment) {
       return res.status(404).json({
@@ -454,9 +341,7 @@ export async function updateAppointment(req: Request, res: Response) {
     const observation =
       appointmentData.observation ?? getAppointment.observation;
 
-    const findPatient = await prisma.patient.findUnique({
-      where: { id: patientId },
-    });
+    const findPatient = await findPatientForAppointmentModel(patientId);
 
     if (!findPatient) {
       return res.status(404).json({
@@ -465,9 +350,7 @@ export async function updateAppointment(req: Request, res: Response) {
       });
     }
 
-    const findMedic = await prisma.medic.findUnique({
-      where: { id: medicId },
-    });
+    const findMedic = await findMedicForAppointmentModel(medicId);
 
     if (!findMedic) {
       return res.status(404).json({
@@ -480,29 +363,21 @@ export async function updateAppointment(req: Request, res: Response) {
     const end = new Date(start.getTime() + DURATION);
     const previous = new Date(start.getTime() - DURATION);
 
-    const repeatedAppointmentForMedic = await prisma.appointment.findFirst({
-      where: {
+    const repeatedAppointmentForMedic =
+      await findRepeatedAppointmentForMedicModel(
         medicId,
-        status: "SCHEDULED",
-        id: { not: appointmentId },
-        appointmentDate: {
-          gt: previous,
-          lt: end,
-        },
-      },
-    });
+        previous,
+        end,
+        appointmentId,
+      );
 
-    const repeatedAppointmentForPatient = await prisma.appointment.findFirst({
-      where: {
+    const repeatedAppointmentForPatient =
+      await findRepeatedAppointmentForPatientModel(
         patientId,
-        status: "SCHEDULED",
-        id: { not: appointmentId },
-        appointmentDate: {
-          gt: previous,
-          lt: end,
-        },
-      },
-    });
+        previous,
+        end,
+        appointmentId,
+      );
 
     if (repeatedAppointmentForMedic) {
       return res.status(409).json({
@@ -519,38 +394,11 @@ export async function updateAppointment(req: Request, res: Response) {
       });
     }
 
-    const updatedAppointment = await prisma.appointment.update({
-      where: {
-        id: appointmentId,
-      },
-      data: {
-        appointmentDate,
-        observation,
-        patientId,
-        medicId,
-      },
-      select: {
-        id: true,
-        appointmentDate: true,
-        observation: true,
-        status: true,
-        patient: {
-          select: {
-            patientName: true,
-            patientLastName: true,
-          },
-        },
-        medic: {
-          select: {
-            professionalCode: true,
-            specialty: {
-              select: {
-                specialtyName: true,
-              },
-            },
-          },
-        },
-      },
+    const updatedAppointment = await updateAppointmentModel(appointmentId, {
+      appointmentDate,
+      observation,
+      patientId,
+      medicId,
     });
 
     return res.status(200).json({
@@ -595,20 +443,10 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
       });
     }
 
-    const getAppointment = await prisma.appointment.findFirst({
-      where: {
-        id: appointmentId,
-        ...(authUser.role === "MEDIC"
-          ? {
-              medic: {
-                is: {
-                  userId: authUser.id,
-                },
-              },
-            }
-          : {}),
-      },
-    });
+    const getAppointment = await findAppointmentToUpdateModel(
+      appointmentId,
+      authUser.role === "MEDIC" ? authUser.id : undefined,
+    );
 
     if (!getAppointment) {
       return res.status(404).json({
@@ -637,22 +475,10 @@ export async function updateAppointmentStatus(req: Request, res: Response) {
       });
     }
 
-    const updatedStatus = await prisma.appointment.update({
-      where: {
-        id: appointmentId,
-      },
-      data: { status: appointmentData.status },
-      select: {
-        id: true,
-        patient: {
-          select: {
-            patientName: true,
-            patientLastName: true,
-          },
-        },
-        status: true,
-      },
-    });
+    const updatedStatus = await updateAppointmentStatusModel(
+      appointmentId,
+      appointmentData.status,
+    );
 
     return res.status(200).json({
       ok: true,

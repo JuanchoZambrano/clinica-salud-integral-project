@@ -1,13 +1,19 @@
 import type { Request, Response } from "express";
-import { prisma } from "../config/prisma.js";
 import { z } from "zod";
-
-const createSpecialtySchema = z.object({
-  specialtyName: z.string().trim().min(1, "El nombre es obligatorio."),
-  description: z.string().optional(),
-});
-
-const updateSpecialtySchema = createSpecialtySchema.partial();
+import {
+  findSpecialtyByNameModel,
+  createSpecialtyModel,
+  getSpecialtiesModel,
+  getSpecialtyByIdModel,
+  findSpecialtyByIdModel,
+  updateSpecialtyModel,
+  findSpecialtyToDeleteModel,
+  deleteSpecialtyModel,
+} from "../models/specialtyModel.js";
+import {
+  createSpecialtySchema,
+  updateSpecialtySchema,
+} from "../schemas/specialtySchema.js";
 
 export async function createSpecialty(req: Request, res: Response) {
   /* 
@@ -40,9 +46,7 @@ export async function createSpecialty(req: Request, res: Response) {
 
     const { specialtyName, description } = validation.data;
 
-    const existingSpecialty = await prisma.specialty.findUnique({
-      where: { specialtyName },
-    });
+    const existingSpecialty = await findSpecialtyByNameModel(specialtyName);
 
     if (existingSpecialty) {
       return res.status(409).json({
@@ -51,11 +55,9 @@ export async function createSpecialty(req: Request, res: Response) {
       });
     }
 
-    const newSpecialty = await prisma.specialty.create({
-      data: {
-        specialtyName,
-        description,
-      },
+    const newSpecialty = await createSpecialtyModel({
+      specialtyName,
+      description,
     });
 
     return res.status(201).json({
@@ -83,16 +85,7 @@ export async function getSpecialties(req: Request, res: Response) {
     }]
   */
   try {
-    const specialties = await prisma.specialty.findMany({
-      select: {
-        id: true,
-        specialtyName: true,
-        description: true,
-      },
-      orderBy: {
-        id: "asc",
-      },
-    });
+    const specialties = await getSpecialtiesModel();
 
     return res.status(200).json({
       ok: true,
@@ -127,26 +120,7 @@ export async function getSpecialtyById(req: Request, res: Response) {
       });
     }
 
-    const specialty = await prisma.specialty.findUnique({
-      where: { id: specialtyId },
-      select: {
-        id: true,
-        specialtyName: true,
-        description: true,
-        medics: {
-          select: {
-            id: true,
-            professionalCode: true,
-            user: {
-              select: {
-                userName: true,
-                userEmail: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const specialty = await getSpecialtyByIdModel(specialtyId);
 
     if (!specialty) {
       return res.status(404).json({
@@ -215,9 +189,7 @@ export async function updateSpecialty(req: Request, res: Response) {
       });
     }
 
-    const specialty = await prisma.specialty.findUnique({
-      where: { id: specialtyId },
-    });
+    const specialty = await findSpecialtyByIdModel(specialtyId);
 
     if (!specialty) {
       return res.status(404).json({
@@ -227,9 +199,9 @@ export async function updateSpecialty(req: Request, res: Response) {
     }
 
     if (data.specialtyName && data.specialtyName !== specialty.specialtyName) {
-      const existingSpecialty = await prisma.specialty.findUnique({
-        where: { specialtyName: data.specialtyName },
-      });
+      const existingSpecialty = await findSpecialtyByNameModel(
+        data.specialtyName,
+      );
 
       if (existingSpecialty) {
         return res.status(409).json({
@@ -239,10 +211,7 @@ export async function updateSpecialty(req: Request, res: Response) {
       }
     }
 
-    const updatedSpecialty = await prisma.specialty.update({
-      where: { id: specialtyId },
-      data,
-    });
+    const updatedSpecialty = await updateSpecialtyModel(specialtyId, data);
 
     return res.status(200).json({
       ok: true,
@@ -277,16 +246,7 @@ export async function deleteSpecialty(req: Request, res: Response) {
       });
     }
 
-    const specialty = await prisma.specialty.findUnique({
-      where: { id: specialtyId },
-      include: {
-        _count: {
-          select: {
-            medics: true,
-          },
-        },
-      },
-    });
+    const specialty = await findSpecialtyToDeleteModel(specialtyId);
 
     if (!specialty) {
       return res.status(404).json({
@@ -303,13 +263,7 @@ export async function deleteSpecialty(req: Request, res: Response) {
       });
     }
 
-    const deleteData = {
-      where: {
-        id: specialtyId,
-      },
-    };
-
-    await prisma.specialty.delete(deleteData);
+    await deleteSpecialtyModel(specialtyId);
 
     return res.status(200).json({
       ok: true,

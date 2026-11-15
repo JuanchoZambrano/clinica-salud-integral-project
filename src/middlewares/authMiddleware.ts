@@ -1,7 +1,6 @@
-
 import type { RequestHandler } from "express";
 import jwt from "jsonwebtoken";
-import { prisma } from "../config/prisma.js";
+import { findUserForAuthModel } from "../models/authModel.js";
 
 const allowedRoles: string[] = [
   "ADMIN",
@@ -49,18 +48,7 @@ export const authMiddleware: RequestHandler = async (req, res, next) => {
       return;
     }
 
-    const userActive = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        status: true,
-        role: {
-          select: {
-            roleName: true,
-          },
-        },
-      },
-    });
+    const userActive = await findUserForAuthModel(userId);
 
     if (!userActive || !userActive.status) {
       res.status(401).json({

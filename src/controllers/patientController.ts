@@ -1,49 +1,19 @@
 import type { Request, Response } from "express";
-import { prisma } from "../config/prisma";
-import { z } from "zod";
-
-const createPatientSchema = z.object({
-  patientName: z
-    .string()
-    .trim()
-    .min(1, "Por favor ingrese el nombre del paciente."),
-  patientLastName: z
-    .string()
-    .trim()
-    .min(1, "Por favor ingrese el apellido del paciente"),
-  personalId: z
-    .string()
-    .trim()
-    .min(1, "El ID personal del paciente es obligatorio.")
-    .max(30, "El ID personalno puede tener más de 30 caracteres."),
-  birthDate: z.coerce
-    .date({ message: "Introduce una fecha y hora válidas." })
-    .refine(
-      (date) => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return date <= today;
-      },
-      {
-        message: "La fecha y hora no pueden ser mayores a la actual",
-      },
-    ),
-  patientEmail: z.string().trim().email("Correo electronico invalido."),
-  patientPhone: z
-    .string()
-    .max(20, "El telefono no puede tener mas de 20 caracteres.")
-    .optional(),
-  patientAddress: z
-    .string()
-    .max(200, "La dirección no puede tener más de 200 caracteres.")
-    .optional(),
-});
-
-const updatePatientSchema = createPatientSchema
-  .partial()
-  .refine((data) => Object.keys(data).length > 0, {
-    message: "Debe proporcionar al menos un campo para actualizar.",
-  });
+import {
+  findExistingPatientModel,
+  createPatientModel,
+  getPatientsModel,
+  getPatientByIdModel,
+  findPatientToUpdateModel,
+  findDuplicatedPatientModel,
+  updatePatientModel,
+  findPatientAppointmentsModel,
+  getPatientAppointmentsModel,
+} from "../models/patientModel.js";
+import {
+  createPatientSchema,
+  updatePatientSchema,
+} from "../schemas/patientSchema.js";
 
 export async function createPatient(req: Request, res: Response) {
   /*
@@ -61,7 +31,7 @@ export async function createPatient(req: Request, res: Response) {
         birthDate: "YYYY-MM-DDT00:00:00.000Z",
         patientEmail: "example@mail.com",
         patientPhone: "",
-        patientAdress: ""
+        patientAddress: ""
       }
     }
     #swagger.security = [{
@@ -80,14 +50,10 @@ export async function createPatient(req: Request, res: Response) {
 
     const patientData = validation.data;
 
-    const existingPatient = await prisma.patient.findFirst({
-      where: {
-        OR: [
-          { personalId: patientData.personalId },
-          { patientEmail: patientData.patientEmail },
-        ],
-      },
-    });
+    const existingPatient = await findExistingPatientModel(
+      patientData.personalId,
+      patientData.patientEmail,
+    );
 
     if (existingPatient) {
       res.status(409).json({
@@ -97,22 +63,7 @@ export async function createPatient(req: Request, res: Response) {
       return;
     }
 
-    const newPatient = await prisma.patient.create({
-      data: {
-        patientName: patientData.patientName,
-        patientLastName: patientData.patientLastName,
-        personalId: patientData.personalId,
-        birthDate: patientData.birthDate,
-        patientEmail: patientData.patientEmail,
-        patientPhone: patientData.patientPhone,
-        patientAddress: patientData.patientAddress,
-      },
-      select: {
-        id: true,
-        personalId: true,
-        patientEmail: true,
-      },
-    });
+    const newPatient = await createPatientModel(patientData);
 
     res.status(201).json({
       ok: true,
@@ -138,18 +89,7 @@ export async function getPatients(req: Request, res: Response) {
     }]
   */
   try {
-    const patients = await prisma.patient.findMany({
-      select: {
-        id: true,
-        patientName: true,
-        patientLastName: true,
-        personalId: true,
-        patientEmail: true,
-      },
-      orderBy: {
-        id: "asc",
-      },
-    });
+    const patients = await getPatientsModel();
 
     res.status(200).json({
       ok: true,
@@ -182,33 +122,7 @@ export async function getPatientById(req: Request, res: Response) {
       });
     }
 
-    const getPatient = await prisma.patient.findUnique({
-      where: { id: patientId },
-      include: {
-        appointments: {
-          orderBy: {
-            appointmentDate: "desc",
-          },
-          include: {
-            medic: {
-              include: {
-                user: {
-                  select: {
-                    userName: true,
-                    userEmail: true,
-                  },
-                },
-                specialty: {
-                  select: {
-                    specialtyName: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+    const getPatient = await getPatientByIdModel(patientId);
 
     if (!getPatient) {
       return res.status(404).json({
@@ -249,9 +163,7 @@ export async function getPatientAppointments(req: Request, res: Response) {
       });
     }
 
-    const getPatient = await prisma.patient.findUnique({
-      where: { id: patientId },
-    });
+    const getPatient = await findPatientAppointmentsModel(patientId);
 
     if (!getPatient) {
       return res.status(404).json({
@@ -260,25 +172,7 @@ export async function getPatientAppointments(req: Request, res: Response) {
       });
     }
 
-    const patientAppointments = await prisma.appointment.findMany({
-      where: { patientId }, //abrev. de {patientId: patientId}
-      include: {
-        medic: {
-          include: {
-            user: {
-              select: {
-                userName: true,
-              },
-            },
-            specialty: {
-              select: {
-                specialtyName: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const patientAppointments = await getPatientAppointmentsModel(patientId);
 
     res.status(200).json({
       ok: true,
@@ -320,9 +214,7 @@ export async function updatePatient(req: Request, res: Response) {
       });
     }
 
-    const getPatient = await prisma.patient.findUnique({
-      where: { id: patientId },
-    });
+    const getPatient = await findPatientToUpdateModel(patientId);
 
     if (!getPatient) {
       return res.status(404).json({
@@ -353,12 +245,11 @@ export async function updatePatient(req: Request, res: Response) {
     }
 
     if (duplicatedInfo.length > 0) {
-      const existingPatient = await prisma.patient.findFirst({
-        where: {
-          id: { not: patientId }, // uso not para saltarme al paciente que estoy actualizando
-          OR: duplicatedInfo, //busca coincidencias por personalId o email
-        },
-      });
+      const existingPatient = await findDuplicatedPatientModel(
+        patientId,
+        duplicatedInfo,
+      );
+
       if (existingPatient) {
         res.status(409).json({
           ok: false,
@@ -368,10 +259,7 @@ export async function updatePatient(req: Request, res: Response) {
       }
     }
 
-    const updatePatient = await prisma.patient.update({
-      where: { id: patientId },
-      data: patientNewData,
-    });
+    const updatePatient = await updatePatientModel(patientId, patientNewData);
 
     res.status(200).json({
       ok: true,

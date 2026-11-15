@@ -1,26 +1,21 @@
 import type { Request, Response } from "express";
-import { prisma } from "../config/prisma.js";
-import { z } from "zod";
 import bcrypt from "bcrypt";
-
-const createUserSchema = z.object({
-  userName: z.string().trim().min(1, "El nombre es obligatorio."),
-  userEmail: z.string().trim().email("Correo electrónico inválido."),
-  password: z.string().min(8, "La contraseña debe tener mínimo 8 caracteres."),
-  roleName: z
-    .string()
-    .trim()
-    .transform((value) => value.toUpperCase())
-    .pipe(z.enum(["RECEPTIONIST", "MANAGER"])),
-});
-
-const updateUserSchema = createUserSchema.partial();
-
-const updateUserStatusSchema = z.object({
-  status: z.boolean({
-    message: "El estado debe ser true o false.",
-  }),
-});
+import {
+  findExistingUserModel,
+  findRoleByNameModel,
+  createUserModel,
+  getUsersModel,
+  findUserByIdModel,
+  findDuplicateUserModel,
+  updateUserModel,
+  findUserWithRoleModel,
+  updateUserStatusModel,
+} from "../models/userModel.js";
+import {
+  createUserSchema,
+  updateUserSchema,
+  updateUserStatusSchema,
+} from "../schemas/userSchema.js";
 
 export async function createUser(req: Request, res: Response) {
   /*
@@ -56,11 +51,7 @@ export async function createUser(req: Request, res: Response) {
 
     const { userName, userEmail, password, roleName } = validation.data;
 
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ userName }, { userEmail }],
-      },
-    });
+    const existingUser = await findExistingUserModel(userName, userEmail);
 
     if (existingUser) {
       return res.status(409).json({
@@ -69,9 +60,7 @@ export async function createUser(req: Request, res: Response) {
       });
     }
 
-    const findRole = await prisma.role.findUnique({
-      where: { roleName },
-    });
+    const findRole = await findRoleByNameModel(roleName);
 
     if (!findRole) {
       return res.status(404).json({
@@ -82,24 +71,11 @@ export async function createUser(req: Request, res: Response) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await prisma.user.create({
-      data: {
-        userName,
-        userEmail,
-        userPassword: hashedPassword,
-        roleId: findRole.id,
-      },
-      select: {
-        id: true,
-        userName: true,
-        userEmail: true,
-        status: true,
-        role: {
-          select: {
-            roleName: true,
-          },
-        },
-      },
+    const newUser = await createUserModel({
+      userName,
+      userEmail,
+      hashedPassword,
+      roleId: findRole.id,
     });
 
     return res.status(201).json({
@@ -127,23 +103,7 @@ export async function getUsers(req: Request, res: Response) {
   */
 
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        userName: true,
-        userEmail: true,
-        status: true,
-        createdAt: true,
-        role: {
-          select: {
-            roleName: true,
-          },
-        },
-      },
-      orderBy: {
-        id: "asc",
-      },
-    });
+    const users = await getUsersModel();
 
     return res.status(200).json({
       ok: true,
@@ -206,12 +166,7 @@ export async function updateUser(req: Request, res: Response) {
       });
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        role: true,
-      },
-    });
+    const existingUser = await findUserByIdModel(userId);
 
     if (!existingUser) {
       return res.status(404).json({
@@ -228,15 +183,11 @@ export async function updateUser(req: Request, res: Response) {
     }
 
     if (userName || userEmail) {
-      const duplicateUser = await prisma.user.findFirst({
-        where: {
-          id: { not: userId },
-          OR: [
-            ...(userName ? [{ userName }] : []),
-            ...(userEmail ? [{ userEmail }] : []),
-          ],
-        },
-      });
+      const duplicateUser = await findDuplicateUserModel(
+        userId,
+        userName,
+        userEmail,
+      );
 
       if (duplicateUser) {
         return res.status(409).json({
@@ -249,9 +200,7 @@ export async function updateUser(req: Request, res: Response) {
     let roleId: number | undefined;
 
     if (roleName) {
-      const role = await prisma.role.findUnique({
-        where: { roleName },
-      });
+      const role = await findRoleByNameModel(roleName);
 
       if (!role) {
         return res.status(404).json({
@@ -266,25 +215,11 @@ export async function updateUser(req: Request, res: Response) {
       ? await bcrypt.hash(password, 10)
       : undefined;
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(userName ? { userName } : {}),
-        ...(userEmail ? { userEmail } : {}),
-        ...(hashedPassword ? { userPassword: hashedPassword } : {}),
-        ...(roleId ? { roleId } : {}),
-      },
-      select: {
-        id: true,
-        userName: true,
-        userEmail: true,
-        status: true,
-        role: {
-          select: {
-            roleName: true,
-          },
-        },
-      },
+    const updatedUser = await updateUserModel(userId, {
+      userName,
+      userEmail,
+      hashedPassword,
+      roleId,
     });
 
     return res.status(200).json({
@@ -340,12 +275,7 @@ export async function updateUserStatus(req: Request, res: Response) {
       });
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        role: true,
-      },
-    });
+    const existingUser = await findUserWithRoleModel(userId);
 
     if (!existingUser) {
       return res.status(404).json({
@@ -361,23 +291,10 @@ export async function updateUserStatus(req: Request, res: Response) {
       });
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        status: validation.data.status,
-      },
-      select: {
-        id: true,
-        userName: true,
-        userEmail: true,
-        status: true,
-        role: {
-          select: {
-            roleName: true,
-          },
-        },
-      },
-    });
+    const updatedUser = await updateUserStatusModel(
+      userId,
+      validation.data.status,
+    );
 
     return res.status(200).json({
       ok: true,

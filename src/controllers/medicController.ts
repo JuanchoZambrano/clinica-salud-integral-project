@@ -1,24 +1,24 @@
-
 import type { Request, Response } from "express";
-import { prisma } from "../config/prisma.js";
-import { z } from "zod";
 import bcrypt from "bcrypt";
-
-const createMedicSchema = z.object({
-  userName: z.string().trim().min(1, "El nombre es obligatorio."),
-  userEmail: z.string().email("Correo electrónico inválido."),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
-  professionalCode: z.string().trim().min(1, "El código profesional es obligatorio."),
-  medicPhone: z.string().optional(),
-  specialtyId: z.number().int().positive(),
-});
-
-const updateMedicSchema = createMedicSchema
-  .omit({ password: true })
-  .partial()
-  .extend({
-    password: z.string().min(6).optional(),
-  });
+import {
+  findUserByEmailModel,
+  findMedicByCodeModel,
+  findSpecialtyModel,
+  findMedicRoleModel,
+  createMedicTransactionModel,
+  getMedicsModel,
+  getMedicByIdModel,
+  findMedicToUpdateModel,
+  findUserByEmailForUpdateModel,
+  findMedicByCodeForUpdateModel,
+  updateMedicTransactionModel,
+  findMedicToDeleteModel,
+  deactivateMedicModel,
+} from "../models/medicModel.js";
+import {
+  createMedicSchema,
+  updateMedicSchema,
+} from "../schemas/medicSchema.js";
 
 export async function createMedic(req: Request, res: Response) {
   /*
@@ -62,9 +62,7 @@ export async function createMedic(req: Request, res: Response) {
       specialtyId,
     } = validation.data;
 
-    const existingUser = await prisma.user.findUnique({
-      where: { userEmail },
-    });
+    const existingUser = await findUserByEmailModel(userEmail);
 
     if (existingUser) {
       return res.status(409).json({
@@ -73,9 +71,7 @@ export async function createMedic(req: Request, res: Response) {
       });
     }
 
-    const existingMedic = await prisma.medic.findUnique({
-      where: { professionalCode },
-    });
+    const existingMedic = await findMedicByCodeModel(professionalCode);
 
     if (existingMedic) {
       return res.status(409).json({
@@ -84,9 +80,7 @@ export async function createMedic(req: Request, res: Response) {
       });
     }
 
-    const specialty = await prisma.specialty.findUnique({
-      where: { id: specialtyId },
-    });
+    const specialty = await findSpecialtyModel(specialtyId);
 
     if (!specialty) {
       return res.status(404).json({
@@ -95,9 +89,7 @@ export async function createMedic(req: Request, res: Response) {
       });
     }
 
-    const role = await prisma.role.findUnique({
-      where: { roleName: "MEDIC" },
-    });
+    const role = await findMedicRoleModel();
 
     if (!role) {
       return res.status(500).json({
@@ -108,41 +100,14 @@ export async function createMedic(req: Request, res: Response) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newMedic = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
-        data: {
-          userName,
-          userEmail,
-          userPassword: hashedPassword,
-          roleId: role.id,
-        },
-      });
-
-      return tx.medic.create({
-        data: {
-          professionalCode,
-          medicPhone,
-          specialtyId,
-          userId: newUser.id,
-        },
-        select: {
-          id: true,
-          professionalCode: true,
-          medicPhone: true,
-          user: {
-            select: {
-              id: true,
-              userName: true,
-              userEmail: true,
-            },
-          },
-          specialty: {
-            select: {
-              specialtyName: true,
-            },
-          },
-        },
-      });
+    const newMedic = await createMedicTransactionModel({
+      userName,
+      userEmail,
+      hashedPassword,
+      professionalCode,
+      medicPhone,
+      specialtyId,
+      roleId: role.id,
     });
 
     return res.status(201).json({
@@ -174,8 +139,7 @@ export async function getMedics(req: Request, res: Response) {
 
     if (
       specialtyId !== undefined &&
-      (typeof specialtyId !== "string" ||
-        !/^[1-9]\d*$/.test(specialtyId))
+      (typeof specialtyId !== "string" || !/^[1-9]\d*$/.test(specialtyId))
     ) {
       return res.status(400).json({
         ok: false,
@@ -183,35 +147,9 @@ export async function getMedics(req: Request, res: Response) {
       });
     }
 
-    const medics = await prisma.medic.findMany({
-      where: {
-        ...(specialtyId !== undefined ? { specialtyId: Number(specialtyId) } : {}),
-        user: {
-          status: true,
-        },
-      },
-      select: {
-        id: true,
-        professionalCode: true,
-        medicPhone: true,
-        user: {
-          select: {
-            userName: true,
-            userEmail: true,
-            status: true,
-          },
-        },
-        specialty: {
-          select: {
-            id: true,
-            specialtyName: true,
-          },
-        },
-      },
-      orderBy: {
-        id: "asc",
-      },
-    });
+    const medics = await getMedicsModel(
+      specialtyId !== undefined ? Number(specialtyId) : undefined,
+    );
 
     return res.status(200).json({
       ok: true,
@@ -245,45 +183,7 @@ export async function getMedicById(req: Request, res: Response) {
       });
     }
 
-    const medic = await prisma.medic.findUnique({
-      where: { id: medicId },
-      select: {
-        id: true,
-        professionalCode: true,
-        medicPhone: true,
-        user: {
-          select: {
-            userName: true,
-            userEmail: true,
-            status: true,
-          },
-        },
-        specialty: {
-          select: {
-            id: true,
-            specialtyName: true,
-          },
-        },
-        appointments: {
-          orderBy: {
-            appointmentDate: "desc",
-          },
-          select: {
-            id: true,
-            appointmentDate: true,
-            observation: true,
-            status: true,
-            patient: {
-              select: {
-                patientName: true,
-                patientLastName: true,
-                personalId: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const medic = await getMedicByIdModel(medicId);
 
     if (!medic) {
       return res.status(404).json({
@@ -352,10 +252,7 @@ export async function updateMedic(req: Request, res: Response) {
       });
     }
 
-    const medic = await prisma.medic.findUnique({
-      where: { id: medicId },
-      include: { user: true },
-    });
+    const medic = await findMedicToUpdateModel(medicId);
 
     if (!medic) {
       return res.status(404).json({
@@ -365,9 +262,7 @@ export async function updateMedic(req: Request, res: Response) {
     }
 
     if (data.userEmail && data.userEmail !== medic.user.userEmail) {
-      const existingEmail = await prisma.user.findUnique({
-        where: { userEmail: data.userEmail },
-      });
+      const existingEmail = await findUserByEmailForUpdateModel(data.userEmail);
 
       if (existingEmail) {
         return res.status(409).json({
@@ -381,9 +276,9 @@ export async function updateMedic(req: Request, res: Response) {
       data.professionalCode &&
       data.professionalCode !== medic.professionalCode
     ) {
-      const existingCode = await prisma.medic.findUnique({
-        where: { professionalCode: data.professionalCode },
-      });
+      const existingCode = await findMedicByCodeForUpdateModel(
+        data.professionalCode,
+      );
 
       if (existingCode) {
         return res.status(409).json({
@@ -394,10 +289,8 @@ export async function updateMedic(req: Request, res: Response) {
     }
 
     if (data.specialtyId) {
-      const specialty = await prisma.specialty.findUnique({
-        where: { id: data.specialtyId },
-      });
-
+      const specialty = await findSpecialtyModel(data.specialtyId);
+      
       if (!specialty) {
         return res.status(404).json({
           ok: false,
@@ -408,40 +301,16 @@ export async function updateMedic(req: Request, res: Response) {
 
     const { userName, userEmail, password, ...medicData } = data;
 
-    const updatedMedic = await prisma.$transaction(async (tx) => {
-      if (userName || userEmail || password) {
-        await tx.user.update({
-          where: { id: medic.userId },
-          data: {
-            ...(userName ? { userName } : {}),
-            ...(userEmail ? { userEmail } : {}),
-            ...(password ? { userPassword: await bcrypt.hash(password, 10) } : {}),
-          },
-        });
-      }
-
-      return tx.medic.update({
-        where: { id: medicId },
-        data: medicData,
-        select: {
-          id: true,
-          professionalCode: true,
-          medicPhone: true,
-          user: {
-            select: {
-              userName: true,
-              userEmail: true,
-            },
-          },
-          specialty: {
-            select: {
-              id: true,
-              specialtyName: true,
-            },
-          },
-        },
-      });
-    });
+    const updatedMedic = await updateMedicTransactionModel(
+      medicId,
+      medic.userId,
+      {
+        userName,
+        userEmail,
+        hashedPassword: password ? await bcrypt.hash(password, 10) : undefined,
+        ...medicData,
+      },
+    );
 
     return res.status(200).json({
       ok: true,
@@ -476,9 +345,7 @@ export async function deleteMedic(req: Request, res: Response) {
       });
     }
 
-    const medic = await prisma.medic.findUnique({
-      where: { id: medicId },
-    });
+    const medic = await findMedicToDeleteModel(medicId);
 
     if (!medic) {
       return res.status(404).json({
@@ -487,10 +354,7 @@ export async function deleteMedic(req: Request, res: Response) {
       });
     }
 
-    await prisma.user.update({
-      where: { id: medic.userId },
-      data: { status: false },
-    });
+    await deactivateMedicModel(medic.userId);
 
     return res.status(200).json({
       ok: true,

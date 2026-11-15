@@ -212,7 +212,7 @@
                   "type": "string",
                   "example": ""
                 },
-                "patientAdress": {
+                "patientAddress": {
                   "type": "string",
                   "example": ""
                 }

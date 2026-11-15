@@ -1,13 +1,11 @@
 import type { Response, Request } from "express";
-import { prisma } from "../config/prisma.js";
-import { z } from "zod";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-
-const loginSchema = z.object({
-  email: z.string().email("Correo electrónico inválido"),
-  password: z.string().min(1, "La contraseña es obligatoria"),
-});
+import {
+  findUserByEmailModel,
+  findUserByIdModel,
+} from "../models/authModel.js";
+import { loginSchema } from "../schemas/authSchema.js";
 
 export async function login(req: Request, res: Response) {
   /* 
@@ -36,10 +34,7 @@ export async function login(req: Request, res: Response) {
 
     const { email, password } = validation.data;
 
-    const findUser = await prisma.user.findUnique({
-      where: { userEmail: email },
-      include: { role: true },
-    });
+    const findUser = await findUserByEmailModel(email);
 
     if (!findUser || !findUser.status) {
       res.status(401).json({
@@ -104,14 +99,7 @@ export async function me(req: Request, res: Response) {
       role: string;
     };
 
-    const user = await prisma.user.findUnique({
-      where: {
-        id: authUser.id,
-      },
-      include: {
-        role: true,
-      },
-    });
+    const user = await findUserByIdModel(authUser.id);
 
     if (!user || !user.status) {
       res.status(401).json({
